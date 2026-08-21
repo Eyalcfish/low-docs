@@ -571,6 +571,17 @@ def run_builder():
 				}
 				all_instructions.append(rec)
 				x86_count += 1
+
+				# Generate explicit SAL alias for SHL instructions
+				if mnemonic == "shl":
+					sal_id = rec_id.replace("shl", "sal")
+					sal_rec = dict(rec)
+					sal_rec["id"] = sal_id
+					sal_rec["mnemonic"] = "sal"
+					sal_rec["summary"] = "Shift Arithmetic Left (Synonym for SHL)"
+					sal_rec["description"] = f"Shifts destination operand bits left by count ({operands_str}), inserting zeros at LSB and copying out bits to Carry Flag (CF). Note: In x86/AMD64 architecture, SAL and SHL share the exact same machine code opcode encoding."
+					all_instructions.append(sal_rec)
+					x86_count += 1
 		print(f"  Processed & enriched {x86_count} x86/AMD64 instructions")
 	else:
 		print("  raw_sources/x86/instructions.xml not found!")

@@ -41,6 +41,34 @@
       "affected_flags": "None",
       "vector_length": "Scalable Vector Length (VLEN)",
       "source_db": "RISC-V Vector Extension Spec"
+    },
+    "armv7_add_r": {
+      "mnemonic": "add",
+      "operands": "r0, r1, r2",
+      "arch": "armv7",
+      "isa_extension": "ARMv7-A A32",
+      "category": "Integer Arithmetic",
+      "opcode_encoding": "cond 00 0 0100 S Rn Rd 00000000 Rm",
+      "opcode_prefix": "ARM (32-bit)",
+      "summary": "Add (register)",
+      "description": "Adds the value of register Rm to Rn, storing the 32-bit result in Rd. If the S suffix is used, condition flags (N, Z, C, V) in APSR are updated.",
+      "affected_flags": "APSR (N, Z, C, V if S suffix set)",
+      "vector_length": "N/A",
+      "source_db": "ARM Architecture Reference Manual AArch32"
+    },
+    "rv_jalr": {
+      "mnemonic": "jalr",
+      "operands": "rd, offset(rs1)",
+      "arch": "riscv32/riscv64",
+      "isa_extension": "RV_I",
+      "category": "Control Flow / Branch",
+      "opcode_encoding": "imm[11:0] rs1 000 rd 1100111",
+      "opcode_prefix": "I-type Format",
+      "summary": "Jump and Link Register",
+      "description": "Sets the target address to (rs1 + sign-extended 12-bit offset) with lowest bit cleared to zero. Stores the address of instruction following jump (PC + 4) into destination register rd.",
+      "affected_flags": "None",
+      "vector_length": "N/A",
+      "source_db": "RISC-V Unified DB / Spec"
     }
   },
   "overrides_by_mnemonic": {}

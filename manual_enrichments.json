@@ -2,17 +2,73 @@
   "overrides_by_id": {
     "x86_vaddps_zmm": {
       "mnemonic": "vaddps",
-      "operands": "zmm1, zmm2, zmm3/m512",
+      "operands": "zmm1 {k1}{z}, zmm2, zmm3/m512/m32bcst",
       "arch": "amd64",
       "isa_extension": "AVX512F",
       "category": "Vector / SIMD",
       "opcode_encoding": "EVEX.512.66.0F.W0 58 /r",
       "opcode_prefix": "EVEX (4-byte prefix: 0x62)",
-      "summary": "Add Packed Single-Precision Floating-Point Values (512-bit)",
-      "description": "Performs element-wise addition of 16 single-precision (32-bit) floating-point numbers from zmm2 and zmm3/m512, storing the result in zmm1 with optional masking and zeroing.",
-      "affected_flags": "None",
+      "summary": "Add Packed Single-Precision Floating-Point Values (512-bit ZMM)",
+      "description": "Performs SIMD element-wise addition of 16 single-precision (32-bit) IEEE 754 floating-point values from source register zmm2 and source operand zmm3/m512 (with optional broadcast of a single float32 to all 16 lanes). Stores the result in destination register zmm1 under the control of opmask register k1, supporting optional zero-masking {z}.",
+      "affected_flags": "None (Floating-point exceptions captured in MXCSR register)",
       "vector_length": "512 bits (16 x float32)",
       "source_db": "Intel Architecture Instruction Set Extensions Reference"
+    },
+    "x86_mov_r64_imm64": {
+      "mnemonic": "mov",
+      "operands": "r64, imm64",
+      "arch": "amd64",
+      "isa_extension": "BASE (x86-64)",
+      "category": "Data Transfer / Movement",
+      "opcode_encoding": "REX.W + B8+rd io",
+      "opcode_prefix": "REX.W (0x48 prefix)",
+      "summary": "Move 64-Bit Immediate to 64-Bit Register",
+      "description": "Loads a full 64-bit immediate constant directly into the destination 64-bit general-purpose register. This is the only x86 MOV variant that accepts an unconstrained 64-bit immediate value without sign-extension.",
+      "affected_flags": "None",
+      "vector_length": "N/A",
+      "source_db": "Intel 64 and IA-32 Architectures Software Developer's Manual"
+    },
+    "x86_cmpxchg_m64_r64": {
+      "mnemonic": "cmpxchg",
+      "operands": "m64, r64",
+      "arch": "amd64",
+      "isa_extension": "BASE (Pentium+)",
+      "category": "Atomic / Synchronization",
+      "opcode_encoding": "REX.W 0F B1 /r",
+      "opcode_prefix": "Optional LOCK (0xF0) + REX.W",
+      "summary": "Compare and Exchange 64-bit Value",
+      "description": "Compares the 64-bit value in the RAX accumulator with the destination operand in memory (m64). If equal, the source register (r64) is loaded into destination and ZF is set to 1. If not equal, the destination memory value is loaded into RAX and ZF is cleared to 0. When prepended with the LOCK prefix, executes atomically across cache lines.",
+      "affected_flags": "ZF=1 if equal, ZF=0 if not equal; CF, OF, SF, AF, PF updated",
+      "vector_length": "N/A",
+      "source_db": "Intel 64 and IA-32 Architectures Software Developer's Manual"
+    },
+    "x86_syscall": {
+      "mnemonic": "syscall",
+      "operands": "None",
+      "arch": "amd64",
+      "isa_extension": "BASE (x86-64)",
+      "category": "System / Privilege",
+      "opcode_encoding": "0F 05",
+      "opcode_prefix": "None (2-byte Opcode)",
+      "summary": "Fast System Call (64-bit Ring 0 Transition)",
+      "description": "Transitions execution from user space (Ring 3) to kernel space (Ring 0) at the entry point specified in the IA32_LSTAR MSR. Saves RIP into RCX and RFLAGS into R11, while masking RFLAGS using the IA32_FMASK MSR.",
+      "affected_flags": "RFLAGS masked by IA32_FMASK MSR; original RFLAGS saved into R11",
+      "vector_length": "N/A",
+      "source_db": "Intel 64 and IA-32 Architectures Software Developer's Manual"
+    },
+    "x86_cpuid": {
+      "mnemonic": "cpuid",
+      "operands": "None (Implicit: EAX, ECX -> EAX, EBX, ECX, EDX)",
+      "arch": "x86/amd64",
+      "isa_extension": "BASE",
+      "category": "System / Information",
+      "opcode_encoding": "0F A2",
+      "opcode_prefix": "None",
+      "summary": "CPU Identification and Feature Introspection",
+      "description": "Returns processor identification, vendor string, feature flags, cache topology, and extended architectural state support in EAX, EBX, ECX, and EDX based on the input leaf value in EAX and sub-leaf in ECX. Also acts as a serializing instruction.",
+      "affected_flags": "None",
+      "vector_length": "N/A",
+      "source_db": "Intel 64 and IA-32 Architectures Software Developer's Manual"
     },
     "arm64_fadd_vec": {
       "mnemonic": "fadd",
@@ -22,11 +78,81 @@
       "category": "Vector / SIMD",
       "opcode_encoding": "0x4e20d420",
       "opcode_prefix": "Fixed 32-bit Instruction",
-      "summary": "Floating-point Add (vector, single-precision)",
-      "description": "Adds corresponding single-precision floating-point elements in the four 32-bit lanes of vectors v1 and v2, and places the results in vector v0.",
-      "affected_flags": "None",
+      "summary": "Floating-point Add (Vector Single-Precision, 4 Lanes)",
+      "description": "Adds corresponding 32-bit single-precision IEEE 754 floating-point elements in the four vector lanes of registers v1 and v2, writing the four resulting 32-bit sums into vector destination register v0.",
+      "affected_flags": "None (Cumulative FP exceptions recorded in FPSR)",
       "vector_length": "128 bits (4 x float32)",
       "source_db": "ARM Architecture Reference Manual A64"
+    },
+    "arm64_ldp_post": {
+      "mnemonic": "ldp",
+      "operands": "Xt1, Xt2, [Xn], #imm",
+      "arch": "arm64",
+      "isa_extension": "ARMv8-A Base",
+      "category": "Memory / Load-Store",
+      "opcode_encoding": "10 101 0 011 0 imm7 Rt2 Rn Rt",
+      "opcode_prefix": "Fixed 32-bit Instruction",
+      "summary": "Load Pair of 64-bit Registers (Post-Indexed)",
+      "description": "Loads two 64-bit doublewords from consecutive memory locations starting at base address in Xn into destination registers Xt1 and Xt2, then updates base address register Xn by adding the signed immediate byte offset.",
+      "affected_flags": "None",
+      "vector_length": "N/A",
+      "source_db": "ARM Architecture Reference Manual A64"
+    },
+    "arm64_cas_64": {
+      "mnemonic": "cas",
+      "operands": "Xs, Xt, [Xn]",
+      "arch": "arm64",
+      "isa_extension": "ARMv8.1-A LSE",
+      "category": "Atomic / Synchronization",
+      "opcode_encoding": "11 001000 10 1 Rs 0 11111 Rn Rt",
+      "opcode_prefix": "Fixed 32-bit Instruction",
+      "summary": "Compare and Swap (64-bit Atomic)",
+      "description": "Compares 64-bit value in register Xs with the 64-bit value in memory at address [Xn]. If equal, writes 64-bit value from Xt into memory. In all cases, loads the original value from memory into Xs.",
+      "affected_flags": "None",
+      "vector_length": "N/A",
+      "source_db": "ARM Architecture Reference Manual A64"
+    },
+    "arm64_pacia": {
+      "mnemonic": "pacia",
+      "operands": "Xd, Xn",
+      "arch": "arm64",
+      "isa_extension": "ARMv8.3-A PAC",
+      "category": "Security / Pointer Authentication",
+      "opcode_encoding": "1 10 11010110 00001 0000 00 Rn Rd",
+      "opcode_prefix": "Fixed 32-bit Instruction",
+      "summary": "Pointer Authentication Code (Key A, Data Modifier)",
+      "description": "Calculates and inserts a cryptographic Pointer Authentication Code (PAC) into the unused upper bits of the 64-bit pointer in Xd, using Key A and the modifier value in Xn.",
+      "affected_flags": "None",
+      "vector_length": "N/A",
+      "source_db": "ARM Architecture Reference Manual A64"
+    },
+    "armv7_add_r": {
+      "mnemonic": "add",
+      "operands": "r0, r1, r2",
+      "arch": "armv7",
+      "isa_extension": "ARMv7-A A32",
+      "category": "Integer Arithmetic",
+      "opcode_encoding": "cond 00 0 0100 S Rn Rd 00000000 Rm",
+      "opcode_prefix": "ARM (32-bit)",
+      "summary": "Add 32-Bit Registers (ARM Mode)",
+      "description": "Adds the 32-bit value in register r2 to r1, placing the sum in destination register r0. If conditional execution codes (e.g. ADDEQ, ADDNE) are specified, the instruction executes only if APSR flags satisfy condition.",
+      "affected_flags": "APSR (N, Z, C, V updated if S suffix specified)",
+      "vector_length": "N/A",
+      "source_db": "ARM Architecture Reference Manual AArch32"
+    },
+    "armv7_vadd_f32": {
+      "mnemonic": "vadd.f32",
+      "operands": "q0, q1, q2",
+      "arch": "armv7",
+      "isa_extension": "ARMv7-A NEON",
+      "category": "Vector / SIMD",
+      "opcode_encoding": "1111 0010 0 D 00 Vn Vd 1101 N Q M 0 Vm",
+      "opcode_prefix": "ARM NEON 32-bit",
+      "summary": "Vector Floating-Point Add (Single-Precision NEON Quadword)",
+      "description": "Performs parallel SIMD addition of four single-precision 32-bit floating-point elements from 128-bit source registers q1 and q2, placing the four sums into 128-bit destination register q0.",
+      "affected_flags": "None (FPSCR cumulative flags updated)",
+      "vector_length": "128 bits (4 x float32)",
+      "source_db": "ARM Architecture Reference Manual AArch32"
     },
     "rv_vadd_vv": {
       "mnemonic": "vadd.vv",
@@ -37,24 +163,10 @@
       "opcode_encoding": "000000 1 ..... ..... 000 ..... 1010111",
       "opcode_prefix": "Vector OPIVV Format",
       "summary": "Vector-Vector Integer Addition",
-      "description": "Performs element-wise addition of active elements in vector register vs2 and vs1 under mask vm, writing elements to destination vector vd.",
-      "affected_flags": "None",
+      "description": "Performs element-wise addition of active elements in vector register group vs2 and vs1 under mask vm, writing elements to destination vector vd according to current SEW (Selected Element Width) and LMUL (Vector Register Multiplier).",
+      "affected_flags": "None (Configures/resets vstart to 0)",
       "vector_length": "Scalable Vector Length (VLEN)",
       "source_db": "RISC-V Vector Extension Spec"
-    },
-    "armv7_add_r": {
-      "mnemonic": "add",
-      "operands": "r0, r1, r2",
-      "arch": "armv7",
-      "isa_extension": "ARMv7-A A32",
-      "category": "Integer Arithmetic",
-      "opcode_encoding": "cond 00 0 0100 S Rn Rd 00000000 Rm",
-      "opcode_prefix": "ARM (32-bit)",
-      "summary": "Add (register)",
-      "description": "Adds the value of register Rm to Rn, storing the 32-bit result in Rd. If the S suffix is used, condition flags (N, Z, C, V) in APSR are updated.",
-      "affected_flags": "APSR (N, Z, C, V if S suffix set)",
-      "vector_length": "N/A",
-      "source_db": "ARM Architecture Reference Manual AArch32"
     },
     "rv_jalr": {
       "mnemonic": "jalr",
@@ -64,12 +176,443 @@
       "category": "Control Flow / Branch",
       "opcode_encoding": "imm[11:0] rs1 000 rd 1100111",
       "opcode_prefix": "I-type Format",
-      "summary": "Jump and Link Register",
-      "description": "Sets the target address to (rs1 + sign-extended 12-bit offset) with lowest bit cleared to zero. Stores the address of instruction following jump (PC + 4) into destination register rd.",
+      "summary": "Jump and Link Register (Indirect Control Transfer)",
+      "description": "Sets the program counter (PC) to (rs1 + sign-extended 12-bit offset) with the least-significant bit forced to zero. Simultaneously stores the return address (PC + 4) into destination register rd (commonly ra / x1).",
+      "affected_flags": "None",
+      "vector_length": "N/A",
+      "source_db": "RISC-V Unified DB / Spec"
+    },
+    "rv_lr_w": {
+      "mnemonic": "lr.w",
+      "operands": "rd, (rs1)",
+      "arch": "riscv32/riscv64",
+      "isa_extension": "RV_A",
+      "category": "Atomic / Synchronization",
+      "opcode_encoding": "00010 aq rl 00000 rs1 010 rd 0101111",
+      "opcode_prefix": "R-type Atomic Format",
+      "summary": "Load-Reserved 32-Bit Word",
+      "description": "Loads a 32-bit word from memory address in rs1 into destination register rd and registers a reservation on the memory address. Used in pair with SC.W (Store-Conditional) to implement lock-free atomic read-modify-write sequences.",
+      "affected_flags": "None",
+      "vector_length": "N/A",
+      "source_db": "RISC-V Unified DB / Spec"
+    },
+    "rv_sc_w": {
+      "mnemonic": "sc.w",
+      "operands": "rd, rs2, (rs1)",
+      "arch": "riscv32/riscv64",
+      "isa_extension": "RV_A",
+      "category": "Atomic / Synchronization",
+      "opcode_encoding": "00011 aq rl rs2 rs1 010 rd 0101111",
+      "opcode_prefix": "R-type Atomic Format",
+      "summary": "Store-Conditional 32-Bit Word",
+      "description": "Conditionally writes the 32-bit word in rs2 to memory address in rs1 if a valid reservation from a prior LR.W exists on the address. Writes 0 to destination register rd on success, or non-zero on failure.",
+      "affected_flags": "None",
+      "vector_length": "N/A",
+      "source_db": "RISC-V Unified DB / Spec"
+    },
+    "rv_c_addi": {
+      "mnemonic": "c.addi",
+      "operands": "rd, nzimm[5:0]",
+      "arch": "riscv32/riscv64",
+      "isa_extension": "RV_C",
+      "category": "Compressed Instruction",
+      "opcode_encoding": "000 imm[5] rd imm[4:0] 01",
+      "opcode_prefix": "Compressed 16-bit CR-Format",
+      "summary": "Compressed Add Immediate (16-bit Encoding)",
+      "description": "Adds non-zero sign-extended 6-bit immediate to value in register rd and writes result back to rd. Provides a dense 16-bit encoding for the common `addi rd, rd, imm` instruction.",
       "affected_flags": "None",
       "vector_length": "N/A",
       "source_db": "RISC-V Unified DB / Spec"
     }
   },
-  "overrides_by_mnemonic": {}
+  "overrides_by_mnemonic": {
+    "add": {
+      "summary": "Integer Addition",
+      "description": "Adds source operand to destination operand and stores result in destination register. Updates standard arithmetic status flags if architecture supports flag modification."
+    },
+    "sub": {
+      "summary": "Integer Subtraction",
+      "description": "Subtracts source operand from destination operand and stores result in destination register. Evaluates borrow and overflow status."
+    },
+    "adc": {
+      "summary": "Add with Carry",
+      "description": "Adds source operand and current Carry flag (CF) value to destination operand, storing sum in destination. Used for multi-word / multiprecision arithmetic."
+    },
+    "sbb": {
+      "summary": "Subtract with Borrow",
+      "description": "Subtracts source operand and current Carry/Borrow flag value from destination operand, storing difference in destination."
+    },
+    "mul": {
+      "summary": "Unsigned Integer Multiply",
+      "description": "Performs unsigned integer multiplication of operands, producing double-width product across register pair or destination register."
+    },
+    "imul": {
+      "summary": "Signed Integer Multiply",
+      "description": "Performs two's-complement signed integer multiplication, preserving sign across destination register or multi-register product."
+    },
+    "div": {
+      "summary": "Unsigned Integer Division",
+      "description": "Divides accumulator value by source operand, producing unsigned quotient and remainder."
+    },
+    "idiv": {
+      "summary": "Signed Integer Division",
+      "description": "Divides sign-extended dividend by divisor operand, computing signed quotient and signed remainder."
+    },
+    "and": {
+      "summary": "Bitwise Logical AND",
+      "description": "Computes bitwise logical AND of source and destination operands. Each bit of result is 1 if and only if both corresponding input bits are 1."
+    },
+    "or": {
+      "summary": "Bitwise Logical Inclusive OR",
+      "description": "Computes bitwise logical inclusive OR of source and destination operands. Each bit of result is 1 if either corresponding input bit is 1."
+    },
+    "xor": {
+      "summary": "Bitwise Logical Exclusive OR",
+      "description": "Computes bitwise logical XOR of source and destination operands. Often used to zero a register when applied to identical operands (`xor reg, reg`)."
+    },
+    "not": {
+      "summary": "Bitwise One's Complement Negation",
+      "description": "Inverts all bits of the operand, replacing 0s with 1s and 1s with 0s without altering condition flags."
+    },
+    "neg": {
+      "summary": "Two's Complement Integer Negation",
+      "description": "Replaces operand value with its two's-complement arithmetic negation (0 - operand). Sets Carry Flag (CF) to 1 unless operand is 0."
+    },
+    "shl": {
+      "summary": "Shift Logical Left",
+      "description": "Shifts operand bits to the left by count, shifting in zeros at the least-significant bit position. High-order bits are shifted into Carry Flag."
+    },
+    "shr": {
+      "summary": "Shift Logical Right",
+      "description": "Shifts operand bits to the right by count, shifting in zeros at the most-significant bit position. Low-order bits are shifted into Carry Flag."
+    },
+    "sar": {
+      "summary": "Shift Arithmetic Right",
+      "description": "Shifts operand bits to the right by count while preserving the sign bit (most-significant bit replicated), performing signed integer division by powers of 2."
+    },
+    "rol": {
+      "summary": "Rotate Left",
+      "description": "Rotates operand bits to the left circularly by count; bits shifted out of MSB wrap around into LSB and are copied into Carry Flag."
+    },
+    "ror": {
+      "summary": "Rotate Right",
+      "description": "Rotates operand bits to the right circularly by count; bits shifted out of LSB wrap around into MSB and are copied into Carry Flag."
+    },
+    "popcnt": {
+      "summary": "Population Count (Number of Set Bits)",
+      "description": "Counts the number of bits set to 1 in the source operand and stores the integer count in the destination register. Sets ZF=1 if source is 0."
+    },
+    "lzcnt": {
+      "summary": "Count Leading Zeros",
+      "description": "Counts the number of continuous zero bits starting from the most-significant bit (MSB) to the first set bit. Sets CF=1 if input is zero."
+    },
+    "tzcnt": {
+      "summary": "Count Trailing Zeros",
+      "description": "Counts the number of continuous zero bits starting from the least-significant bit (LSB) to the first set bit. Sets ZF=1 if input is zero."
+    },
+    "bswap": {
+      "summary": "Byte Swap (Endianness Conversion)",
+      "description": "Reverses the byte order of a 32-bit or 64-bit general-purpose register, converting between little-endian and big-endian representations."
+    },
+    "clz": {
+      "summary": "Count Leading Zeros",
+      "description": "Counts the number of consecutive zero bits starting from the MSB of the source operand and writes the count to destination register."
+    },
+    "ctz": {
+      "summary": "Count Trailing Zeros",
+      "description": "Counts the number of consecutive zero bits starting from the LSB of the source operand and writes the count to destination register."
+    },
+    "cpop": {
+      "summary": "Count Population (RISC-V Bitmanip)",
+      "description": "Counts the number of 1-bits in register rs1 and writes the integer sum to destination register rd."
+    },
+    "mov": {
+      "summary": "Move Data / Transfer",
+      "description": "Copies data from source operand to destination operand without modifying condition flags."
+    },
+    "lea": {
+      "summary": "Load Effective Address",
+      "description": "Computes the effective memory address from the memory operand expression (base + index * scale + disp) and stores the resulting address directly in the destination register without accessing memory."
+    },
+    "ldr": {
+      "summary": "Load Register from Memory",
+      "description": "Loads a word, doubleword, halfword, or byte from memory at the effective target address into the destination register."
+    },
+    "str": {
+      "summary": "Store Register to Memory",
+      "description": "Writes the value from the source register into memory at the computed target address."
+    },
+    "ldp": {
+      "summary": "Load Pair of Registers",
+      "description": "Loads two consecutive registers from adjacent memory addresses in a single atomic memory pipeline operation."
+    },
+    "stp": {
+      "summary": "Store Pair of Registers",
+      "description": "Writes two consecutive registers to adjacent memory addresses in a single memory pipeline operation."
+    },
+    "push": {
+      "summary": "Push Value onto Stack",
+      "description": "Decrements the stack pointer (RSP/ESP/SP) by the operand size and copies the source operand onto the top of the stack."
+    },
+    "pop": {
+      "summary": "Pop Value from Stack",
+      "description": "Loads the value from the top of the stack into the destination register and increments the stack pointer (RSP/ESP/SP) by the operand size."
+    },
+    "jmp": {
+      "summary": "Unconditional Jump",
+      "description": "Transfers program execution control unconditionally to the target code address specified by label, register, or memory offset."
+    },
+    "call": {
+      "summary": "Call Procedure / Subroutine",
+      "description": "Pushes the return address (address of the instruction immediately following CALL) onto the stack and jumps to the target procedure entry point."
+    },
+    "ret": {
+      "summary": "Return from Procedure",
+      "description": "Pops the return address from the top of the stack into the instruction pointer (RIP/EIP/PC), resuming execution in the caller procedure."
+    },
+    "b": {
+      "summary": "Branch Unconditionally or Conditionally",
+      "description": "Transfers program execution to the target label or PC-relative offset. If condition suffixes (e.g. BEQ, BNE) are applied, branch occurs only if condition holds."
+    },
+    "bl": {
+      "summary": "Branch with Link (Subroutine Call)",
+      "description": "Stores the address of the next instruction (PC + 4) into the Link Register (LR / X30 / R14) and branches to target address."
+    },
+    "blr": {
+      "summary": "Branch with Link to Register",
+      "description": "Stores the address of the next instruction into Link Register LR and branches to the dynamic address stored in the specified register."
+    },
+    "bx": {
+      "summary": "Branch and Exchange Instruction Set",
+      "description": "Branches to target address in register, switching CPU state between ARM mode (32-bit) and Thumb mode (16/32-bit) according to bit 0 of target address."
+    },
+    "blx": {
+      "summary": "Branch with Link and Exchange",
+      "description": "Stores return address in Link Register, branches to target address, and switches execution mode between ARM and Thumb state."
+    },
+    "cbz": {
+      "summary": "Compare and Branch on Zero",
+      "description": "Tests if the value in source register is equal to zero, branching to PC-relative target offset if zero without modifying condition flags."
+    },
+    "cbnz": {
+      "summary": "Compare and Branch on Non-Zero",
+      "description": "Tests if the value in source register is non-zero, branching to PC-relative target offset if not zero without modifying condition flags."
+    },
+    "tbz": {
+      "summary": "Test Bit and Branch on Zero",
+      "description": "Tests a specific bit position in register, branching to target address if the tested bit is 0."
+    },
+    "tbnz": {
+      "summary": "Test Bit and Branch on Non-Zero",
+      "description": "Tests a specific bit position in register, branching to target address if the tested bit is 1."
+    },
+    "jal": {
+      "summary": "Jump and Link (Unconditional Jump / Call)",
+      "description": "Adds 20-bit signed PC-relative immediate to PC to compute jump target, while writing return address (PC + 4) into destination register rd (default ra / x1)."
+    },
+    "beq": {
+      "summary": "Branch if Equal",
+      "description": "Compares registers rs1 and rs2, branching to PC-relative offset if rs1 == rs2."
+    },
+    "bne": {
+      "summary": "Branch if Not Equal",
+      "description": "Compares registers rs1 and rs2, branching to PC-relative offset if rs1 != rs2."
+    },
+    "blt": {
+      "summary": "Branch if Less Than (Signed)",
+      "description": "Compares signed integers in registers rs1 and rs2, branching to PC-relative offset if rs1 < rs2."
+    },
+    "bge": {
+      "summary": "Branch if Greater Than or Equal (Signed)",
+      "description": "Compares signed integers in registers rs1 and rs2, branching to PC-relative offset if rs1 >= rs2."
+    },
+    "bltu": {
+      "summary": "Branch if Less Than (Unsigned)",
+      "description": "Compares unsigned integers in registers rs1 and rs2, branching to PC-relative offset if rs1 < rs2 (unsigned)."
+    },
+    "bgeu": {
+      "summary": "Branch if Greater Than or Equal (Unsigned)",
+      "description": "Compares unsigned integers in registers rs1 and rs2, branching to PC-relative offset if rs1 >= rs2 (unsigned)."
+    },
+    "fadd": {
+      "summary": "Floating-Point Addition",
+      "description": "Performs IEEE 754 floating-point addition across scalar or parallel SIMD vector lanes, generating sum with dynamic rounding."
+    },
+    "fsub": {
+      "summary": "Floating-Point Subtraction",
+      "description": "Performs IEEE 754 floating-point subtraction (dest - src) across scalar or parallel SIMD vector lanes."
+    },
+    "fmul": {
+      "summary": "Floating-Point Multiplication",
+      "description": "Performs IEEE 754 floating-point multiplication (dest * src) across scalar or parallel SIMD vector lanes."
+    },
+    "fdiv": {
+      "summary": "Floating-Point Division",
+      "description": "Performs IEEE 754 floating-point division (dest / src) across scalar or parallel SIMD vector lanes, updating exception status on divide-by-zero."
+    },
+    "fsqrt": {
+      "summary": "Floating-Point Square Root",
+      "description": "Calculates the IEEE 754 square root of source operand, writing result to destination register."
+    },
+    "fmadd": {
+      "summary": "Fused Multiply-Add (FMA)",
+      "description": "Computes (src1 * src2) + src3 with a single rounding step at the end, eliminating intermediate rounding error and improving numerical accuracy."
+    },
+    "fmsub": {
+      "summary": "Fused Multiply-Subtract",
+      "description": "Computes (src1 * src2) - src3 with a single final rounding step."
+    },
+    "fnmadd": {
+      "summary": "Fused Negated Multiply-Add",
+      "description": "Computes -((src1 * src2) + src3) with a single final rounding step."
+    },
+    "fnmsub": {
+      "summary": "Fused Negated Multiply-Subtract",
+      "description": "Computes -((src1 * src2) - src3) with a single final rounding step."
+    },
+    "vaddps": {
+      "summary": "Add Packed Single-Precision Floating-Point Values",
+      "description": "Performs SIMD element-wise addition of single-precision (32-bit) IEEE 754 floating-point values across 128-bit (XMM), 256-bit (YMM), or 512-bit (ZMM) vector lanes."
+    },
+    "vaddpd": {
+      "summary": "Add Packed Double-Precision Floating-Point Values",
+      "description": "Performs SIMD element-wise addition of double-precision (64-bit) IEEE 754 floating-point values across 128-bit (2 lanes), 256-bit (4 lanes), or 512-bit (8 lanes) vector registers."
+    },
+    "vmulps": {
+      "summary": "Multiply Packed Single-Precision Floating-Point Values",
+      "description": "Performs SIMD element-wise multiplication of 32-bit floating-point values across vector lanes."
+    },
+    "vmulpd": {
+      "summary": "Multiply Packed Double-Precision Floating-Point Values",
+      "description": "Performs SIMD element-wise multiplication of 64-bit floating-point values across vector lanes."
+    },
+    "vsubps": {
+      "summary": "Subtract Packed Single-Precision Floating-Point Values",
+      "description": "Performs SIMD element-wise subtraction of 32-bit floating-point values across vector lanes."
+    },
+    "vsubpd": {
+      "summary": "Subtract Packed Double-Precision Floating-Point Values",
+      "description": "Performs SIMD element-wise subtraction of 64-bit floating-point values across vector lanes."
+    },
+    "vdivps": {
+      "summary": "Divide Packed Single-Precision Floating-Point Values",
+      "description": "Performs SIMD element-wise division of 32-bit floating-point values across vector lanes."
+    },
+    "vdivpd": {
+      "summary": "Divide Packed Double-Precision Floating-Point Values",
+      "description": "Performs SIMD element-wise division of 64-bit floating-point values across vector lanes."
+    },
+    "vfmadd132ps": {
+      "summary": "Fused Multiply-Add (132 Form, Single-Precision)",
+      "description": "Multiplies vector operand 1 by vector operand 3, adds vector operand 2, and overwrites vector operand 1 with final single-rounded result: `dest = (dest * src3) + src2`."
+    },
+    "vfmadd213ps": {
+      "summary": "Fused Multiply-Add (213 Form, Single-Precision)",
+      "description": "Multiplies vector operand 1 by vector operand 2, adds vector operand 3, and overwrites vector operand 1 with final single-rounded result: `dest = (dest * src2) + src3`."
+    },
+    "vfmadd231ps": {
+      "summary": "Fused Multiply-Add (231 Form, Single-Precision)",
+      "description": "Multiplies vector operand 2 by vector operand 3, adds vector operand 1, and overwrites vector operand 1 with final single-rounded result: `dest = (src2 * src3) + dest`."
+    },
+    "aesenc": {
+      "summary": "Perform One Round of AES Encryption",
+      "description": "Applies ShiftRows, SubBytes, MixColumns, and AddRoundKey transformations of the AES algorithm to 128-bit state in source register using 128-bit round key."
+    },
+    "aesdec": {
+      "summary": "Perform One Round of AES Decryption",
+      "description": "Applies Inverse ShiftRows, Inverse SubBytes, Inverse MixColumns, and AddRoundKey transformations of the AES algorithm to 128-bit state using 128-bit round key."
+    },
+    "aesenclast": {
+      "summary": "Perform Last Round of AES Encryption",
+      "description": "Applies ShiftRows, SubBytes, and AddRoundKey transformations (omitting MixColumns) for the final round of AES encryption."
+    },
+    "aesdeclast": {
+      "summary": "Perform Last Round of AES Decryption",
+      "description": "Applies Inverse ShiftRows, Inverse SubBytes, and AddRoundKey transformations (omitting Inverse MixColumns) for the final round of AES decryption."
+    },
+    "cmpxchg": {
+      "summary": "Compare and Exchange",
+      "description": "Compares value in accumulator (AL/AX/EAX/RAX) with destination operand. If equal, loads source register into destination and sets ZF=1; otherwise loads destination into accumulator and clears ZF=0."
+    },
+    "xchg": {
+      "summary": "Exchange Register/Memory with Register",
+      "description": "Swaps the contents of source and destination operands. When referencing memory, automatically asserts bus LOCK signal on x86 processors."
+    },
+    "xadd": {
+      "summary": "Exchange and Add",
+      "description": "Exchanges first operand with second operand, then loads sum of both values into first operand. Commonly used with LOCK prefix to implement atomic fetch-and-add."
+    },
+    "syscall": {
+      "summary": "Fast System Call",
+      "description": "Invokes operating system kernel service at Ring 0 via MSR entry point, saving user RIP into RCX and RFLAGS into R11."
+    },
+    "sysret": {
+      "summary": "Return from Fast System Call",
+      "description": "Returns from Ring 0 to Ring 3 64-bit user code, restoring RIP from RCX and RFLAGS from R11."
+    },
+    "svc": {
+      "summary": "Supervisor Call (System Exception)",
+      "description": "Generates a supervisor call exception, transferring execution to operating system exception vector at Exception Level 1 (EL1)."
+    },
+    "smc": {
+      "summary": "Secure Monitor Call",
+      "description": "Generates a Secure Monitor Call exception to transition execution to Exception Level 3 (EL3, Secure Monitor)."
+    },
+    "hvc": {
+      "summary": "Hypervisor Call",
+      "description": "Generates a Hypervisor Call exception to transition execution to Exception Level 2 (EL2, Virtualization Host)."
+    },
+    "ecall": {
+      "summary": "Environment Call (System Call / Service Request)",
+      "description": "Makes a service request to execution environment / operating system kernel by raising an environment-call exception at U-mode, S-mode, or M-mode."
+    },
+    "ebreak": {
+      "summary": "Environment Break (Debugger Trap)",
+      "description": "Transfers control to debugging environment by raising a breakpoint trap exception."
+    },
+    "wfi": {
+      "summary": "Wait for Interrupt",
+      "description": "Suspends CPU core execution and puts processor into low-power idle standby state until a hardware interrupt or wake-up event occurs."
+    },
+    "hlt": {
+      "summary": "Halt Processor",
+      "description": "Stops instruction execution and places CPU in a halted low-power state until an enabled interrupt (NMI, SMI, INTR) or reset occurs."
+    },
+    "pause": {
+      "summary": "Spin-Loop Hint / Pause",
+      "description": "Provides a hint to the processor that the executing code is inside a spin-wait loop, reducing pipeline power consumption and preventing memory order violation penalties upon loop exit."
+    },
+    "cpuid": {
+      "summary": "Processor Feature Identification",
+      "description": "Returns processor identification and hardware feature flags in EAX, EBX, ECX, EDX based on input leaf value in EAX."
+    },
+    "rdtsc": {
+      "summary": "Read Time-Stamp Counter",
+      "description": "Loads current 64-bit processor cycle count from Time-Stamp Counter into EDX:EAX."
+    },
+    "rdtscp": {
+      "summary": "Read Time-Stamp Counter and Processor ID",
+      "description": "Reads 64-bit cycle count into EDX:EAX and processor/core ID into ECX, serializing prior instruction execution."
+    },
+    "fence": {
+      "summary": "Memory and I/O Fence",
+      "description": "Orders device I/O and memory accesses as viewed by other RISC-V harts and external devices."
+    },
+    "fence.i": {
+      "summary": "Instruction-Fetch Fence",
+      "description": "Synchronizes instruction cache fetches with prior data memory writes, ensuring newly generated / self-modifying code is visible to instruction pipeline."
+    },
+    "dmb": {
+      "summary": "Data Memory Barrier",
+      "description": "Ensures that all explicit memory accesses occurring in program order before the barrier are observed by other cores before any explicit memory accesses after the barrier."
+    },
+    "dsb": {
+      "summary": "Data Synchronization Barrier",
+      "description": "Acts as a strict synchronization barrier: completes all prior memory accesses and cache/TLB operations before any subsequent instruction can execute."
+    },
+    "isb": {
+      "summary": "Instruction Synchronization Barrier",
+      "description": "Flushes instruction pipeline and fetches subsequent instructions from cache or memory, ensuring context/system register changes take effect."
+    }
+  }
 }

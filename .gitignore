@@ -1,0 +1,16 @@
+# Raw data sources (large downloads and cloned vendor repos)
+raw_sources/
+
+# Python cache & build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# OS / Editor metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
